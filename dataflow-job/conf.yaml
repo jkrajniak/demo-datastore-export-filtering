@@ -1,0 +1,8 @@
+OutputDataset: datastore_new
+PrefixOfKindsToIgnore:
+  - __Stat
+KindsToExport:
+  Kind1:
+    field: timestamp
+    endTime: 06:00:00
+    timeInterval: 24h
