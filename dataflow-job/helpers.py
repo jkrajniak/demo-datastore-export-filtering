@@ -93,6 +93,7 @@ class FilterEntity:
         self.time_interval = datetime.timedelta(seconds=timeparse(time_interval))
 
     def get_filter(self) -> tuple:
+        """Get filter configuration"""
         hour = self.end_time[0]
         minute = self.end_time[1]
         second = 0
@@ -124,44 +125,24 @@ class CreateQuery(DoFn):
     """
 
     def __init__(self, project_id: str, entity_filtering: Dict[str, FilterEntity], *unused_args, **unused_kwargs):
+        """
+        :param project_id: GCP Project id
+        :param entity_filtering: Dictionary with filtering options for given kind.
+        """
         super().__init__(*unused_args, **unused_kwargs)
         self.project_id = project_id
         self.entity_filtering = entity_filtering
 
-    def process(self, element, **kwargs):
+    def process(self, kind_name, **kwargs):
         """
-        :param element: a kind name
+        :param kind_name: a kind name
         :return: [Query]
         """
 
-        q = Query(kind=element, project=self.project_id)
-        if element in self.entity_filtering:
-            q.filters = self.entity_filtering[element].get_filter()
+        q = Query(kind=kind_name, project=self.project_id)
+        if kind_name in self.entity_filtering:
+            q.filters = self.entity_filtering[kind_name].get_filter()
 
-        logging.info(f'Query for kind {element}: {q}')
+        logging.info(f'Query for kind {kind_name}: {q}')
 
         return [q]
-
-
-class GetBqTableMap(PTransform):
-    """
-    Get table information of BigQuery as dictionary
-    """
-
-    def __init__(self, project_id, dataset_opt):
-        super().__init__()
-        self.project_id = project_id
-        self.dataset_opt = dataset_opt
-
-    def expand(self, pbegin):
-        """
-        :return: PCollection[{"kind_name": "bigquery_table_name"}]
-        """
-
-        query = datastore.Client(self.project_id).query(kind='__kind__')
-        query.keys_only()
-        kinds = [entity.key.id_or_name for entity in query.fetch()]
-        return (pbegin
-                | Impulse()
-                | beam.FlatMap(lambda _: [(kind, "{}.{}".format(self.dataset_opt.get(), kind)) for kind in kinds])
-                )
