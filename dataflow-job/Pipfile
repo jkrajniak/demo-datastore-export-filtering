@@ -4,9 +4,8 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-apache-beam = {extras = ["gcp"], version = "*"}
+apache-beam = {version = "==2.28.0", extras = ["gcp"]}
 pyyaml = "*"
-v1 = "*"
 pytimeparse = "*"
 
 [dev-packages]

@@ -2,11 +2,9 @@ import datetime
 import logging
 from typing import Dict
 
-from apache_beam import Create, DoFn
-from apache_beam import PTransform
-from apache_beam.io.gcp.datastore.v1new.types import Query
-from apache_beam.transforms import Impulse
+from apache_beam import PTransform, Create, DoFn
 from google.cloud import datastore
+from apache_beam.io.gcp.datastore.v1new.types import Query
 from google.cloud.datastore.helpers import GeoPoint
 from pytimeparse.timeparse import timeparse
 
@@ -52,12 +50,17 @@ def entity_to_json(entity):
     return entity_dict
 
 
-class GetKinds(PTransform):
+class GetAllKinds(PTransform):
     """
-    Get all Kind names
+    Get kinds from all namespaces.
     """
 
-    def __init__(self, project_id, prefix_of_kinds_to_ignore):
+    def __init__(self, project_id: str, prefix_of_kinds_to_ignore: list):
+        """
+
+        :param project_id: The project id.
+        :param prefix_of_kinds_to_ignore: The list of kind prefixes to be ignored.
+        """
         super().__init__()
         self.project_id = project_id
         self.prefix_of_kinds_to_ignore = prefix_of_kinds_to_ignore
@@ -80,7 +83,6 @@ class GetKinds(PTransform):
                     break
             if not ignore_kind:
                 kinds.append(kind_name)
-
 
         logging.info("kinds: {}".format(kinds))
         return pcoll.pipeline | 'Kind' >> Create(kinds)
@@ -108,7 +110,12 @@ class FilterEntity:
         )
 
 
-def get_filter_entities_from_conf(param) -> Dict[str, FilterEntity]:
+def get_filter_entities_from_conf(param: dict) -> Dict[str, FilterEntity]:
+    """
+    Get the entity filters from parameter dictionary.
+    :param param:
+    :return:
+    """
     filter_entities = {}
     for kind_name, kind_conf in param.items():
         filter_entities[kind_name] = FilterEntity(
@@ -124,20 +131,22 @@ class CreateQuery(DoFn):
     Create a query for getting all entities the kind taken.
     """
 
-    def __init__(self, project_id: str, entity_filtering: Dict[str, FilterEntity], *unused_args, **unused_kwargs):
+    def __init__(self, project_id: str, entity_filtering: Dict[str, FilterEntity]):
         """
         :param project_id: GCP Project id
         :param entity_filtering: Dictionary with filtering options for given kind.
         """
-        super().__init__(*unused_args, **unused_kwargs)
         self.project_id = project_id
         self.entity_filtering = entity_filtering
 
     def process(self, kind_name, **kwargs):
         """
+        :param **kwargs:
         :param kind_name: a kind name
         :return: [Query]
         """
+
+        logging.info(f'CreateQuery.process {kind_name} {kwargs}')
 
         q = Query(kind=kind_name, project=self.project_id)
         if kind_name in self.entity_filtering:
@@ -145,4 +154,4 @@ class CreateQuery(DoFn):
 
         logging.info(f'Query for kind {kind_name}: {q}')
 
-        return [q]
+        yield q

@@ -1,0 +1,2 @@
+include conf.yaml
+include requirements.txt
