@@ -10,7 +10,7 @@ from pytimeparse.timeparse import timeparse
 
 
 class Kind:
-    """Represents kind"""
+    """Represents a kind"""
 
     def __init__(self, name, kind_id):
         self.name = name
@@ -184,4 +184,4 @@ class CreateQuery(DoFn):
 
         logging.info(f'Query for kind {kind_name}: {q}')
 
-        yield q
+        return [q]

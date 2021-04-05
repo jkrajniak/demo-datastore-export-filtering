@@ -13,25 +13,38 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from transform.datastore import entity_to_json, GetAllKinds, CreateQuery, get_filter_entities_from_conf
 
 
+class CustomPipelineOptions(PipelineOptions):
+    @classmethod
+    def _add_argparse_args(cls, parser):
+        parser.add_argument(
+            '--conf',
+            dest='conf',
+            required=True,
+            default='conf.yaml')
+
+        parser.add_argument(
+            '--gcs_dir',
+            dest='gcs_dir',
+            required=True
+        )
+        parser.add_argument(
+            '--dataset',
+            dest='dataset',
+            required=True
+        )
+
+
 def run(argv=None):
     """Main entry point to the pipeline."""
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--conf',
-        dest='conf',
-        required=True,
-        default='conf.yaml')
+    pipeline_options = CustomPipelineOptions(argv)
 
-    known_args, pipeline_args = parser.parse_known_args(argv)
+    output_dataset = pipeline_options.dataset
 
-    conf = yaml.load(open(known_args.conf, 'r'), Loader=yaml.SafeLoader)
-
-    output_dataset = conf['OutputDataset']
+    conf = yaml.load(open(pipeline_options.conf, 'r'), Loader=yaml.SafeLoader)
     entity_filtering = get_filter_entities_from_conf(conf['KindsToExport'])
     prefix_of_kinds_to_ignore = conf['PrefixOfKindsToIgnore']
 
-    pipeline_options = PipelineOptions(pipeline_args)
     project_id = pipeline_options.view_as(GoogleCloudOptions).project
 
     pipeline_options.view_as(beam.options.pipeline_options.SetupOptions).setup_file = './setup.py'
@@ -42,7 +55,7 @@ def run(argv=None):
     pipeline_options.view_as(beam.options.pipeline_options.WorkerOptions).disk_size_gb = 25
     pipeline_options.view_as(beam.options.pipeline_options.WorkerOptions).autoscaling_algorithm = 'NONE'
 
-    gcs_dir = "gs://{}-dataflow/temp/{}".format(project_id, datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
+    gcs_dir = f'{pipeline_options.gcs_dir}/temp/{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
 
     class TagElementsWithData(beam.DoFn):
         def process(self, element):
@@ -52,7 +65,7 @@ def run(argv=None):
             yield TaggedOutput(tag, element)
 
     with beam.Pipeline(options=pipeline_options) as p:
-        # Create a query and filter by ktable_side_inputsind
+        # Create a query and filter
         rows = (p
                 | 'get all kinds' >> GetAllKinds(project_id, prefix_of_kinds_to_ignore)
                 | 'create queries' >> beam.ParDo(CreateQuery(project_id, entity_filtering))
