@@ -11,7 +11,6 @@ init:
 	gsutil mb $(GS_TEMP) || echo "Bucket exists"
 	bq --project_id $(PROJECT_ID) mk $(OUTPUT_DATASET) || echo "Dataset exists"
 
-
 run-local:
 	$(CMD_PIPELINE) --runner direct --gcs_dir $(GS_TEMP) --dataset $(OUTPUT_DATASET)
 
