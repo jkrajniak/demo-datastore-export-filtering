@@ -7,6 +7,7 @@ name = "pypi"
 apache-beam = {version = "==2.28.0", extras = ["gcp"]}
 pyyaml = "*"
 pytimeparse = "*"
+pytest = "*"
 
 [dev-packages]
 

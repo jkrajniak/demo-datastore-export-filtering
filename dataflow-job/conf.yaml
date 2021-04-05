@@ -5,4 +5,4 @@ KindsToExport:
   Kind1:
     field: timestamp
     endTime: 06:00:00
-    timeInterval: 24h
+    timeInterval: 268h
