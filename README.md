@@ -1,6 +1,6 @@
 # Datastore to BigQuery with filtering using Dataflow
 
-A demo code for the article in medium.com
+A demo code for the article https://towardsdatascience.com/export-datastore-to-bigquery-using-google-dataflow-1801c25ae482
 
 # How to run
 
