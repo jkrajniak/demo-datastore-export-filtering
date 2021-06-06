@@ -91,7 +91,6 @@ class GetAllKinds(PTransform):
         :param prefix_of_kinds_to_ignore: The list of kind prefixes to be ignored.
         """
         super().__init__()
-        self.project_id = project_id
         self.prefix_of_kinds_to_ignore = prefix_of_kinds_to_ignore
 
     def expand(self, pcoll):
@@ -172,6 +171,7 @@ class CreateQuery(DoFn):
     def process(self, kind_name, **kwargs):
         """
         :param **kwargs:
+        :param project_id: a source project id
         :param kind_name: a kind name
         :return: [Query]
         """
