@@ -1,3 +1,8 @@
+ProjectIDs:
+  - dataflow-streaming-312517
+#  - dataflow-project-a
+#  - dataflow-project-b
+#  - dataflow-project-c
 PrefixOfKindsToIgnore:
   - __Stat
 KindsToExport:

@@ -80,12 +80,12 @@ def filterout_kinds(all_kinds: List[str], kind_prefix_to_ignore: List[str] = Non
     return kinds
 
 
-class GetAllKinds(PTransform):
+class GetAllKinds(DoFn):
     """
     Get kinds from all namespaces.
     """
 
-    def __init__(self, project_id: str, prefix_of_kinds_to_ignore: list):
+    def __init__(self, prefix_of_kinds_to_ignore: list):
         """
         :param project_id: The project id.
         :param prefix_of_kinds_to_ignore: The list of kind prefixes to be ignored.
@@ -93,20 +93,24 @@ class GetAllKinds(PTransform):
         super().__init__()
         self.prefix_of_kinds_to_ignore = prefix_of_kinds_to_ignore
 
-    def expand(self, pcoll):
+    def process(self, project_id, *args, **kwargs):
         """
         :return: PCollection[kind_name]
         """
 
         # Get all kinds.
-        query = datastore.Client(self.project_id).query(kind='__kind__')
-        query.keys_only()
+        logging.info(f'{project_id=}')
+        query = datastore.Client(project=project_id).query(kind='__kind__')
+        # query.keys_only()
         all_kinds = [entity.key.id_or_name for entity in query.fetch()]
-
-        kinds = filterout_kinds(all_kinds, self.prefix_of_kinds_to_ignore)
-
-        logging.info("kinds: {}".format(kinds))
-        return pcoll.pipeline | 'Kind' >> Create(kinds)
+        #
+        # kinds = filterout_kinds(all_kinds, self.prefix_of_kinds_to_ignore)
+        #
+        # kinds_with_project_id = [(project_id, kind_name) for kind_name in kinds]
+        #
+        # logging.info("kinds: {}".format(kinds_with_project_id))
+        # return kinds_with_project_id
+        return []
 
 
 class FilterEntity:
