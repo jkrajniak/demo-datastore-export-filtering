@@ -25,25 +25,18 @@ class CustomPipelineOptions(PipelineOptions):
             '--gcs_dir',
             dest='gcs_dir',
             required=True)
-        parser.add_argument(
-            '--dataset',
-            dest='dataset',
-            required=True,
-            help='Name of the output dataset in BigQuery')
-
 
 def run(argv=None):
     """Main entry point to the pipeline."""
 
     pipeline_options = CustomPipelineOptions(argv)
 
-    output_dataset = pipeline_options.dataset
-
     conf = yaml.load(open(pipeline_options.conf, 'r'), Loader=yaml.SafeLoader)
     entity_filtering = get_filter_entities_from_conf(conf['KindsToExport'])
     prefix_of_kinds_to_ignore = conf['PrefixOfKindsToIgnore']
 
-    project_ids = conf['ProjectIDs']
+    project_ids = conf['SourceProjectIDs']
+    destination = conf['Destination']
 
     pipeline_options.view_as(beam.options.pipeline_options.SetupOptions).setup_file = './setup.py'
     pipeline_options.view_as(beam.options.pipeline_options.SetupOptions).save_main_session = True
@@ -58,9 +51,14 @@ def run(argv=None):
     class TagElementsWithData(beam.DoFn):
         def process(self, element):
             tag = 'write_truncate'
-            if element['__key__']['kind'] in conf['KindsToExport']:
+            if '{project}.{kind}'.format(**element['__key__']) in conf['KindsToExport']:
                 tag = 'write_append'
             yield TaggedOutput(tag, element)
+
+    def normalize_table_name(project, kind):
+        out = f'{project}.{kind}'.lower().replace('-', '_')
+        print(out)
+        return out
 
     with beam.Pipeline(options=pipeline_options) as p:
         # Create a query and filter
@@ -69,36 +67,30 @@ def run(argv=None):
             p
             | 'projects' >> beam.Create(project_ids)
             | 'get all kinds' >> beam.ParDo(GetAllKinds(prefix_of_kinds_to_ignore))
+            | 'create queries' >> beam.ParDo(CreateQuery(entity_filtering))
+            | 'read from datastore' >> beam.ParDo(ReadFromDatastore._QueryFn())
+            | 'convert entities' >> beam.Map(entity_to_json)
         )
-        #
-        # for project_id in project_ids:
-        #     rows = (p
-        #             | 'get all kinds' >> GetAllKinds(project_id, prefix_of_kinds_to_ignore)
-        #             | 'create queries' >> beam.ParDo(CreateQuery(project_id, entity_filtering))
-        #             | 'read from datastore' >> beam.ParDo(ReadFromDatastore._QueryFn())
-        #             | 'convert entities' >> beam.Map(entity_to_json)
-        #             )
-        #
-        #     tagged_data = rows | 'split entities' >> beam.ParDo(TagElementsWithData()).with_outputs()
-        #
-        #     write_append = tagged_data.write_append
-        #     write_truncate = tagged_data.write_truncate
-        #
-        #     # Write entities that are after filtering.
-        #     _ = write_append | 'write append' >> BigQueryBatchFileLoads(
-        #         destination=lambda row: f"{project_id}:{output_dataset}.{row['__key__']['kind'].lower()}",
-        #         custom_gcs_temp_location=f'{gcs_dir}/append',
-        #         write_disposition='WRITE_APPEND',
-        #         create_disposition='CREATE_IF_NEEDED',
-        #         schema='SCHEMA_AUTODETECT')
-        #
-        #     # Write the kinds that are not filtered - full load mode.
-        #     _ = write_truncate | 'write truncate' >> BigQueryBatchFileLoads(
-        #         destination=lambda row: f"{project_id}:{output_dataset}.{row['__key__']['kind'].lower()}",
-        #         custom_gcs_temp_location=f'{gcs_dir}/truncate',
-        #         write_disposition='WRITE_TRUNCATE',
-        #         create_disposition='CREATE_IF_NEEDED',
-        #         schema='SCHEMA_AUTODETECT')
+
+        tagged_data = rows | 'split entities' >> beam.ParDo(TagElementsWithData()).with_outputs()
+        write_append = tagged_data.write_append
+        write_truncate = tagged_data.write_truncate
+
+        # Write entities that are after filtering.
+        _ = write_append | 'write append' >> BigQueryBatchFileLoads(
+            destination=lambda row: f"{destination['ProjectID']}:{destination['Dataset']}.{normalize_table_name(row['__key__']['project'], row['__key__']['kind'])}",
+            custom_gcs_temp_location=f'{gcs_dir}/append',
+            write_disposition='WRITE_APPEND',
+            create_disposition='CREATE_IF_NEEDED',
+            schema='SCHEMA_AUTODETECT')
+
+        # Write the kinds that are not filtered - full load mode.
+        _ = write_truncate | 'write truncate' >> BigQueryBatchFileLoads(
+            destination=lambda row: f"{destination['ProjectID']}:{destination['Dataset']}.{normalize_table_name(row['__key__']['project'], row['__key__']['kind'])}",
+            custom_gcs_temp_location=f'{gcs_dir}/truncate',
+            write_disposition='WRITE_TRUNCATE',
+            create_disposition='CREATE_IF_NEEDED',
+            schema='SCHEMA_AUTODETECT')
 
 
 if __name__ == '__main__':

@@ -1,12 +1,14 @@
-ProjectIDs:
-  - dataflow-streaming-312517
-#  - dataflow-project-a
-#  - dataflow-project-b
-#  - dataflow-project-c
+SourceProjectIDs:
+  - dataflow-project-a
+  - dataflow-project-b
+  - dataflow-project-c
+Destination:
+  ProjectID: dataflow-streaming-312517
+  Dataset: datastore_dev
 PrefixOfKindsToIgnore:
   - __Stat
 KindsToExport:
-  Kind1:
+  dataflow-project-a.Kind1:
     field: timestamp
     endTime: 06:00:00
     timeInterval: 3000h

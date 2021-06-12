@@ -12,9 +12,10 @@ from pytimeparse.timeparse import timeparse
 class Kind:
     """Represents a kind"""
 
-    def __init__(self, name, kind_id):
+    def __init__(self, name, kind_id, project_id):
         self.name = name
         self.id = kind_id
+        self.project_id = project_id
 
 
 def get_kind(entity: Entity) -> Kind:
@@ -31,7 +32,7 @@ def get_kind(entity: Entity) -> Kind:
         kind = entity.key.path_elements[0]
         id_or_name = entity.key.path_elements[1]
 
-    return Kind(kind, id_or_name)
+    return Kind(kind, id_or_name, entity.key.project)
 
 
 def entity_to_json(entity):
@@ -47,6 +48,7 @@ def entity_to_json(entity):
         '__key__': {
             'name': isinstance(kind.id, str) and kind.id or None,
             'id': isinstance(kind.id, int) and kind.id or None,
+            'project': kind.project_id,
             'kind': kind.name,
             'namespace': entity.key.namespace,
             'path': '/'.join(map(str, entity.key.path_elements))
@@ -104,14 +106,12 @@ class GetAllKinds(DoFn):
         # query.keys_only()
         all_kinds = [entity.key.id_or_name for entity in query.fetch()]
         #
-        # kinds = filterout_kinds(all_kinds, self.prefix_of_kinds_to_ignore)
+        kinds = filterout_kinds(all_kinds, self.prefix_of_kinds_to_ignore)
         #
-        # kinds_with_project_id = [(project_id, kind_name) for kind_name in kinds]
+        kinds_with_project_id = [(project_id, kind_name) for kind_name in kinds]
         #
-        # logging.info("kinds: {}".format(kinds_with_project_id))
-        # return kinds_with_project_id
-        return []
-
+        logging.info("kinds: {}".format(kinds_with_project_id))
+        return kinds_with_project_id
 
 class FilterEntity:
     """FilterEntity keeps information about the filtering of given kind."""
@@ -164,15 +164,15 @@ class CreateQuery(DoFn):
     Create a query for getting all entities the kind taken.
     """
 
-    def __init__(self, project_id: str, entity_filtering: Dict[str, FilterEntity]):
+    def __init__(self, entity_filtering: Dict[str, FilterEntity], *unused_args, **unused_kwargs):
         """
         :param project_id: GCP Project id
         :param entity_filtering: Dictionary with filtering options for given kind.
         """
-        self.project_id = project_id
+        super().__init__(*unused_args, **unused_kwargs)
         self.entity_filtering = entity_filtering
 
-    def process(self, kind_name, **kwargs):
+    def process(self, project_kind_name, **kwargs):
         """
         :param **kwargs:
         :param project_id: a source project id
@@ -180,11 +180,14 @@ class CreateQuery(DoFn):
         :return: [Query]
         """
 
-        logging.info(f'CreateQuery.process {kind_name} {kwargs}')
+        project_id, kind_name = project_kind_name
 
-        q = Query(kind=kind_name, project=self.project_id)
-        if kind_name in self.entity_filtering:
-            q.filters = self.entity_filtering[kind_name].get_filter()
+        logging.info(f'CreateQuery.process {kind_name} from {project_id} {kwargs}')
+
+        q = Query(kind=kind_name, project=project_id)
+        project_kind_name = f'{project_id}.{kind_name}'
+        if project_kind_name in self.entity_filtering:
+            q.filters = self.entity_filtering[project_kind_name].get_filter()
 
         logging.info(f'Query for kind {kind_name}: {q}')
 
