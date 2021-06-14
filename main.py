@@ -40,7 +40,7 @@ def run(argv=None):
 
     pipeline_options.view_as(beam.options.pipeline_options.SetupOptions).setup_file = './setup.py'
     pipeline_options.view_as(beam.options.pipeline_options.SetupOptions).save_main_session = True
-    pipeline_options.view_as(beam.options.pipeline_options.GoogleCloudOptions).region = "eu"
+    pipeline_options.view_as(beam.options.pipeline_options.GoogleCloudOptions).region = "europe-west3"
     pipeline_options.view_as(beam.options.pipeline_options.WorkerOptions).machine_type = 'n1-standard-1'
     pipeline_options.view_as(beam.options.pipeline_options.WorkerOptions).num_workers = 2
     pipeline_options.view_as(beam.options.pipeline_options.WorkerOptions).disk_size_gb = 25
