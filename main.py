@@ -56,8 +56,7 @@ def run(argv=None):
             yield TaggedOutput(tag, element)
 
     def normalize_table_name(project, kind):
-        out = f'{project}.{kind}'.lower().replace('-', '_')
-        print(out)
+        out = f'{project}_{kind}'.lower().replace('-', '_')
         return out
 
     with beam.Pipeline(options=pipeline_options) as p:
