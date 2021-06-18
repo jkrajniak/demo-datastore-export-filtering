@@ -103,13 +103,9 @@ class GetAllKinds(DoFn):
         # Get all kinds.
         logging.info(f'{project_id=}')
         query = datastore.Client(project=project_id).query(kind='__kind__')
-        # query.keys_only()
         all_kinds = [entity.key.id_or_name for entity in query.fetch()]
-        #
         kinds = filterout_kinds(all_kinds, self.prefix_of_kinds_to_ignore)
-        #
         kinds_with_project_id = [(project_id, kind_name) for kind_name in kinds]
-        #
         logging.info("kinds: {}".format(kinds_with_project_id))
         return kinds_with_project_id
 
@@ -175,8 +171,7 @@ class CreateQuery(DoFn):
     def process(self, project_kind_name, **kwargs):
         """
         :param **kwargs:
-        :param project_id: a source project id
-        :param kind_name: a kind name
+        :param project_kind_name: a tuple with project_id, kind_name
         :return: [Query]
         """
 
